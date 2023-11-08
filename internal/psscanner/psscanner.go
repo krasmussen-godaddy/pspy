@@ -5,8 +5,11 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/user"
 	"regexp"
+	"golang.org/x/exp/slices"
 	"strconv"
+	"strings"
 	"syscall"
 )
 
@@ -14,6 +17,8 @@ type PSScanner struct {
 	enablePpid   bool
 	eventCh      chan<- PSEvent
 	maxCmdLength int
+	cgroupFilter string
+	userFilter []string
 }
 
 type PSEvent struct {
@@ -48,11 +53,13 @@ var (
 	}
 )
 
-func NewPSScanner(ppid bool, cmdLength int) *PSScanner {
+func NewPSScanner(ppid bool, cmdLength int, cgroupFilter string, userFilter []string ) *PSScanner {
 	return &PSScanner{
 		enablePpid:   ppid,
 		eventCh:      nil,
 		maxCmdLength: cmdLength,
+		cgroupFilter: cgroupFilter,
+		userFilter: userFilter,
 	}
 }
 
@@ -72,8 +79,24 @@ func (p *PSScanner) Run(triggerCh chan struct{}) (chan PSEvent, chan error) {
 }
 
 func (p *PSScanner) processNewPid(pid int) {
+    if p.cgroupFilter != "" {
+        cgroup, _ := readFile(fmt.Sprintf("/proc/%d/cgroup", pid), 512)
+
+        if !strings.Contains(string(cgroup), p.cgroupFilter) {
+            return
+        }
+    }
 	statInfo := syscall.Stat_t{}
 	errStat := lstat(fmt.Sprintf("/proc/%d", pid), &statInfo)
+	if len(p.userFilter) > 0{
+		// Determine user and check if we need to filter this
+		userLookup, errUserLookup := user.LookupId(strconv.FormatUint(uint64(statInfo.Uid), 10))
+		if errUserLookup == nil {
+			if slices.Contains(p.userFilter, userLookup.Username) {
+				return
+			}
+		}
+	}
 	cmdLine, errCmdLine := readFile(fmt.Sprintf("/proc/%d/cmdline", pid), p.maxCmdLength)
 	ppid, _ := p.getPpid(pid)
 

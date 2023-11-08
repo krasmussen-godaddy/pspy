@@ -16,21 +16,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var banner = `
-
-     ██▓███    ██████  ██▓███ ▓██   ██▓
-    ▓██░  ██▒▒██    ▒ ▓██░  ██▒▒██  ██▒
-    ▓██░ ██▓▒░ ▓██▄   ▓██░ ██▓▒ ▒██ ██░
-    ▒██▄█▓▒ ▒  ▒   ██▒▒██▄█▓▒ ▒ ░ ▐██▓░
-    ▒██▒ ░  ░▒██████▒▒▒██▒ ░  ░ ░ ██▒▓░
-    ▒▓▒░ ░  ░▒ ▒▓▒ ▒ ░▒▓▒░ ░  ░  ██▒▒▒ 
-    ░▒ ░     ░ ░▒  ░ ░░▒ ░     ▓██ ░▒░ 
-    ░░       ░  ░  ░  ░░       ▒ ▒ ░░  
-                   ░           ░ ░     
-                               ░ ░     
-
-`
-
 var helpText = `
 pspy monitors the system for file system events and new processes.
 It prints these envents to the console.
@@ -43,7 +28,7 @@ Check out https://github.com/dominicbreuker/pspy for more information.
 var rootCmd = &cobra.Command{
 	Use:   "pspy",
 	Short: "pspy can watch your system for new processes and file system events",
-	Long:  banner,
+	//Long:  banner,
 	Run:   root,
 }
 
@@ -57,22 +42,27 @@ var defaultRDirs = []string{
 	"/var",
 	"/opt",
 }
+var defaultUsers = []string{}
 var defaultDirs = []string{}
 var triggerInterval int
 var colored bool
 var debug bool
 var ppid bool
 var cmdLength int
+var cgroupFilter string
+var userFilter []string
 
 func init() {
 	rootCmd.PersistentFlags().BoolVarP(&logPS, "procevents", "p", true, "print new processes to stdout")
 	rootCmd.PersistentFlags().BoolVarP(&logFS, "fsevents", "f", false, "print file system events to stdout")
 	rootCmd.PersistentFlags().StringArrayVarP(&rDirs, "recursive_dirs", "r", defaultRDirs, "watch these dirs recursively")
 	rootCmd.PersistentFlags().StringArrayVarP(&dirs, "dirs", "d", defaultDirs, "watch these dirs")
+	rootCmd.PersistentFlags().StringVarP(&cgroupFilter, "cgroupfilter", "g", "", "cgroup string match filter")
+	rootCmd.PersistentFlags().StringArrayVarP(&userFilter, "userfilter", "u", defaultUsers, "user string match filter")
 	rootCmd.PersistentFlags().IntVarP(&triggerInterval, "interval", "i", 100, "scan every 'interval' milliseconds for new processes")
-	rootCmd.PersistentFlags().BoolVarP(&colored, "color", "c", true, "color the printed events")
+	rootCmd.PersistentFlags().BoolVarP(&colored, "color", "c", false, "color the printed events")
 	rootCmd.PersistentFlags().BoolVarP(&debug, "debug", "", false, "print detailed error messages")
-	rootCmd.PersistentFlags().BoolVarP(&ppid, "ppid", "", false, "record process ppids")
+	rootCmd.PersistentFlags().BoolVarP(&ppid, "ppid", "", true, "record process ppids")
 	rootCmd.PersistentFlags().IntVarP(&cmdLength, "truncate", "t", 2048, "truncate process cmds longer than this")
 
 	log.SetOutput(os.Stdout)
@@ -80,8 +70,6 @@ func init() {
 
 func root(cmd *cobra.Command, args []string) {
 	logger := logging.NewLogger(debug)
-
-	logger.Infof("%s", banner)
 
 	cfg := &config.Config{
 		RDirs:        rDirs,
@@ -95,7 +83,7 @@ func root(cmd *cobra.Command, args []string) {
 	fsw := fswatcher.NewFSWatcher()
 	defer fsw.Close()
 
-	pss := psscanner.NewPSScanner(ppid, cmdLength)
+	pss := psscanner.NewPSScanner(ppid, cmdLength, cgroupFilter, userFilter)
 
 	sigCh := make(chan os.Signal)
 	signal.Notify(sigCh, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)

@@ -38,7 +38,7 @@ type chans struct {
 }
 
 func Start(cfg *config.Config, b *Bindings, sigCh chan os.Signal) chan struct{} {
-	b.Logger.Infof("Config: %+v", cfg)
+	//b.Logger.Infof("Config: %+v", cfg)
 	abort := make(chan struct{}, 1)
 	abort <- struct{}{}
 
@@ -110,9 +110,9 @@ func startFSW(fsw FSWatcher, logger Logger, drainFor time.Duration, sigCh <-chan
 	go logErrors(errCh, logger)
 
 	// ignore all file system events created on startup
-	logger.Infof("Draining file system events due to startup...")
+	//logger.Infof("Draining file system events due to startup...")
 	ok = drainEventsFor(triggerCh, fsEventCh, drainFor, sigCh, fsw)
-	logger.Infof("done")
+	//logger.Infof("done")
 	return
 }
 
