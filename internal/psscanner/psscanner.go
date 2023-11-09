@@ -82,9 +82,10 @@ func (p *PSScanner) processNewPid(pid int) {
     if p.cgroupFilter != "" {
         cgroup, _ := readFile(fmt.Sprintf("/proc/%d/cgroup", pid), 512)
 
-        if !strings.Contains(string(cgroup), p.cgroupFilter) {
+        if strings.Contains(string(cgroup), p.cgroupFilter) {
             return
         }
+		//fmt.Print(string(cgroup))
     }
 	statInfo := syscall.Stat_t{}
 	errStat := lstat(fmt.Sprintf("/proc/%d", pid), &statInfo)
