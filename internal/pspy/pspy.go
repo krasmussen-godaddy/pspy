@@ -71,7 +71,7 @@ func printOutput(cfg *config.Config, b *Bindings, chans *chans) chan struct{} {
 		for {
 			select {
 			case se := <-chans.sigCh:
-				b.Logger.Infof("Exiting program... (%s)", se)
+				b.Logger.Errorf(false, "Exiting program... (%s)", se)
 				exit <- struct{}{}
 			case fe := <-chans.fsEventCh:
 				if cfg.LogFS {
@@ -83,7 +83,8 @@ func printOutput(cfg *config.Config, b *Bindings, chans *chans) chan struct{} {
 					if cfg.Colored {
 						color = logging.GetColorByUID(pe.UID)
 					}
-					b.Logger.Eventf(color, "CMD: %+v", pe)
+					//b.Logger.Eventf(color, "CMD: %+v", pe)
+					b.Logger.Eventf(color, "%+v", pe)
 				}
 			}
 		}

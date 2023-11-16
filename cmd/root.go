@@ -43,6 +43,7 @@ var defaultRDirs = []string{
 	"/opt",
 }
 var defaultUsers = []string{}
+var defaultCmds = []string{}
 var defaultDirs = []string{}
 var triggerInterval int
 var colored bool
@@ -51,6 +52,7 @@ var ppid bool
 var cmdLength int
 var cgroupFilter string
 var userFilter []string
+var cmdFilter []string
 
 func init() {
 	rootCmd.PersistentFlags().BoolVarP(&logPS, "procevents", "p", true, "print new processes to stdout")
@@ -59,6 +61,7 @@ func init() {
 	rootCmd.PersistentFlags().StringArrayVarP(&dirs, "dirs", "d", defaultDirs, "watch these dirs")
 	rootCmd.PersistentFlags().StringVarP(&cgroupFilter, "cgroupfilter", "g", "", "cgroup string match filter")
 	rootCmd.PersistentFlags().StringArrayVarP(&userFilter, "userfilter", "u", defaultUsers, "user string match filter")
+	rootCmd.PersistentFlags().StringArrayVarP(&cmdFilter, "cmdfilter", "m", defaultCmds, "command string match filter")
 	rootCmd.PersistentFlags().IntVarP(&triggerInterval, "interval", "i", 100, "scan every 'interval' milliseconds for new processes")
 	rootCmd.PersistentFlags().BoolVarP(&colored, "color", "c", false, "color the printed events")
 	rootCmd.PersistentFlags().BoolVarP(&debug, "debug", "", false, "print detailed error messages")
@@ -83,7 +86,7 @@ func root(cmd *cobra.Command, args []string) {
 	fsw := fswatcher.NewFSWatcher()
 	defer fsw.Close()
 
-	pss := psscanner.NewPSScanner(ppid, cmdLength, cgroupFilter, userFilter)
+	pss := psscanner.NewPSScanner(ppid, cmdLength, cgroupFilter, userFilter, cmdFilter)
 
 	sigCh := make(chan os.Signal)
 	signal.Notify(sigCh, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)

@@ -19,6 +19,7 @@ type PSScanner struct {
 	maxCmdLength int
 	cgroupFilter string
 	userFilter []string
+	cmdFilter []string
 }
 
 type PSEvent struct {
@@ -33,13 +34,15 @@ func (evt PSEvent) String() string {
 	if evt.UID == -1 {
 		uid = "???"
 	}
+	// strip whitespace from CMD
+	evt.CMD = strings.TrimSpace(evt.CMD)
 
 	if evt.PPID == -1 {
-		return fmt.Sprintf("UID=%-5s PID=%-6d | %s", uid, evt.PID, evt.CMD)
+		return fmt.Sprintf("UID=%-5s PID=%-6d CMD=%s", uid, evt.PID, evt.CMD)
 	}
 
 	return fmt.Sprintf(
-		"UID=%-5s PID=%-6d PPID=%-6d | %s", uid, evt.PID, evt.PPID, evt.CMD)
+		"UID=%-5s PID=%-6d PPID=%-6d CMD=%s", uid, evt.PID, evt.PPID, evt.CMD)
 }
 
 var (
@@ -53,13 +56,14 @@ var (
 	}
 )
 
-func NewPSScanner(ppid bool, cmdLength int, cgroupFilter string, userFilter []string ) *PSScanner {
+func NewPSScanner(ppid bool, cmdLength int, cgroupFilter string, userFilter []string, cmdFilter []string) *PSScanner {
 	return &PSScanner{
 		enablePpid:   ppid,
 		eventCh:      nil,
 		maxCmdLength: cmdLength,
 		cgroupFilter: cgroupFilter,
 		userFilter: userFilter,
+		cmdFilter: cmdFilter,
 	}
 }
 
@@ -114,6 +118,23 @@ func (p *PSScanner) processNewPid(pid int) {
 	uid := -1
 	if errStat == nil {
 		uid = int(statInfo.Uid)
+	}
+
+	// filter cmd
+	if len(p.cmdFilter) > 0 {
+		for _, v := range p.cmdFilter {
+			if strings.Contains(cmd, v) {
+				return
+			}
+			// also filter out incomplete / possibly terminated commands
+			if cmd == "???"{
+				return
+			}
+			// also filter out empty commands
+			if cmd == ""{
+				return
+			}
+		}
 	}
 
 	p.eventCh <- PSEvent{UID: uid, PID: pid, PPID: ppid, CMD: cmd}
